@@ -127,7 +127,10 @@ def _genqrc(ctx):
     qrc_output = ctx.outputs.qrc
     qrc_content = "<RCC>\n  <qresource prefix=\\\"/\\\">"
     for f in ctx.files.files:
-        qrc_content += "\n    <file>%s</file>" % f.path
+        qrc_content += "\n    <file"
+        if ctx.attr.alias_relative:
+            qrc_content += " alias=\\\"%s\\\"" % f.path.removeprefix(ctx.label.package)
+        qrc_content += ">%s</file>" % f.path
     qrc_content += "\n  </qresource>\n</RCC>"
     cmd = ["echo", "\"%s\"" % qrc_content, ">", qrc_output.path]
     exec_requirements = {}
@@ -145,6 +148,7 @@ genqrc = rule(
     attrs = {
         "files": attr.label_list(allow_files = True, mandatory = True),
         "qrc": attr.output(),
+        "alias_relative": attr.bool(default = False),
     },
 )
 
@@ -182,7 +186,7 @@ def qt_resource_via_qrc(name, qrc_file, files, target_compatible_with = [], **kw
         **kwargs
     )
 
-def qt_resource(name, files, target_compatible_with = [], **kwargs):
+def qt_resource(name, files, alias_relative, target_compatible_with = [], **kwargs):
     """Creates a cc_library containing the contents of all input files using qt's `rcc` tool.
 
     Args:
@@ -193,7 +197,7 @@ def qt_resource(name, files, target_compatible_with = [], **kwargs):
       **kwargs: extra args to pass to the cc_library
     """
     qrc_file = name + "_qrc.qrc"
-    genqrc(name = name + "_qrc", files = files, qrc = qrc_file, target_compatible_with = target_compatible_with)
+    genqrc(name = name + "_qrc", files = files, qrc = qrc_file, alias_relative = alias_relative, target_compatible_with = target_compatible_with)
 
     # every resource cc_library that is linked into the same binary needs a
     # unique 'name'.
